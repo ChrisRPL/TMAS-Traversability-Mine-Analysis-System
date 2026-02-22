@@ -1,0 +1,41 @@
+# TMAS Default Configuration
+# Override values via CLI or by creating custom config files
+
+project_name: tmas
+experiment_name: null  # Auto-generated if not specified
+seed: 42
+device: cuda
+
+# Model configuration
+model:
+  backbone: efficientvit_l2
+  num_classes: 14  # Terrain classes
+  latent_dim: 512
+  pretrained: true
+  checkpoint_path: null
+
+# Data configuration
+data:
+  dataset_name: rellis3d
+  data_dir: data/raw
+  batch_size: 16
+  num_workers: 4
+  image_size: [720, 1280]
+  augmentation: true
+
+# Training configuration
+training:
+  epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  optimizer: adamw
+  scheduler: cosine
+  warmup_epochs: 5
+  gradient_clip_norm: 1.0
+  mixed_precision: true
+
+# Logging configuration
+logging:
+  use_wandb: false
+  use_tensorboard: true
+  log_dir: runs
