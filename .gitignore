@@ -239,13 +239,39 @@ ros2_ws/log/
 
 # Development tools (for AI-assisted development)
 agent-scripts/
+.claude/
+.aider*
+.cursor/
+.vscode/
+.idea/
 
 # Experiment tracking
 wandb/
 runs/
+tensorboard/
+mlruns/
 
 # Temporary development files
 *.tmp
 *.bak
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Development scripts and notes
+dev_notes/
+scratch/
+todo.txt
+notes.md
+
+# Profiling and debugging
+*.prof
+*.log
+*.trace
+profile_*.json
