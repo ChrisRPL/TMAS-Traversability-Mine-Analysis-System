@@ -220,6 +220,8 @@ models/*.engine
 data/real/
 data/synthetic/
 data/annotations/
+data/raw/
+data/processed/
 
 # Sensor calibration data
 configs/sensors/*.json
@@ -234,3 +236,16 @@ recordings/
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
+
+# Development tools (for AI-assisted development)
+agent-scripts/
+
+# Experiment tracking
+wandb/
+runs/
+
+# Temporary development files
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
