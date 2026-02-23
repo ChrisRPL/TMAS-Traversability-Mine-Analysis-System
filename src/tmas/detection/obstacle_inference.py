@@ -71,3 +71,25 @@ class ObstacleInferencePipeline:
             model_type=model_type
         ).to(self.device)
         self.depth_estimator.eval()
+
+    def initialize_tracker(
+        self,
+        track_thresh: float = 0.6,
+        match_thresh: float = 0.8,
+        track_buffer: int = 30
+    ) -> None:
+        """Initialize ByteTrack multi-object tracker.
+
+        Args:
+            track_thresh: High confidence threshold for tracks
+            match_thresh: IOU threshold for matching
+            track_buffer: Frames to keep lost tracks
+        """
+        from ..tracking.byte_tracker import ByteTracker
+
+        self.tracker = ByteTracker(
+            track_thresh=track_thresh,
+            match_thresh=match_thresh,
+            track_buffer=track_buffer,
+            frame_rate=self.fps
+        )
