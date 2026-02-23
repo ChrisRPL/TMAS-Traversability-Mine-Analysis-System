@@ -1,0 +1,78 @@
+# Mine Detection Training Configuration
+# This configuration is optimized for safety-critical mine detection
+# with high recall priority (>99.5% target)
+
+model:
+  rgb_backbone: "efficientvit_l2"
+  thermal_backbone: "resnet18"
+  num_classes: 8  # AT, AP, IED roadside, IED buried, UXO, wire, anomaly, false positive
+  num_queries: 300  # Number of object queries in RT-DETR
+  pretrained: true
+  fusion_dim: 256
+
+data:
+  train_root: "data/synthetic/train"
+  val_root: "data/synthetic/val"
+  num_workers: 4
+
+training:
+  epochs: 100
+  batch_size: 8  # Large images, limited by memory
+  accumulation_steps: 4  # Effective batch size = 8 * 4 = 32
+  mixed_precision: true  # FP16 for faster training
+  num_workers: 4
+
+optimizer:
+  type: "adamw"
+  lr: 5.0e-5  # Low learning rate for fine-tuning
+  weight_decay: 1.0e-4
+  betas: [0.9, 0.999]
+
+scheduler:
+  type: "cosine"  # Options: cosine, onecycle, none
+  eta_min: 1.0e-6
+
+loss:
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+  class_weights:  # Prioritize confirmed mines
+    - 10.0  # AT mine (confirmed) - highest priority
+    - 10.0  # AP mine (confirmed) - highest priority
+    - 8.0   # IED roadside
+    - 8.0   # IED buried
+    - 5.0   # UXO
+    - 5.0   # Wire/trigger
+    - 5.0   # Soil anomaly
+    - 1.0   # False positive
+  loss_weights:
+    classification: 2.0
+    bbox: 5.0
+    giou: 2.0
+
+validation:
+  confidence_threshold: 0.3  # Very low for high recall
+  eval_interval: 1  # Validate every epoch
+  recall_target: 0.995  # 99.5% recall target
+
+checkpoints:
+  save_dir: "checkpoints/mine_detection"
+  save_interval: 10  # Save every 10 epochs
+  keep_best: true
+  keep_latest: true
+
+logging:
+  use_wandb: true
+  wandb_project: "tmas-mine-detection"
+  run_name: "mine_detector_v1"
+  log_interval: 50  # Log every 50 batches
+
+# Class names for reference
+class_names:
+  - "at_mine"
+  - "ap_mine"
+  - "ied_roadside"
+  - "ied_buried"
+  - "uxo"
+  - "wire_trigger"
+  - "soil_anomaly"
+  - "false_positive"
