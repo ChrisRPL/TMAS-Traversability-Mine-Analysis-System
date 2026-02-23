@@ -215,6 +215,13 @@ models/*.pth
 models/*.onnx
 models/*.trt
 models/*.engine
+checkpoints/
+*.pth
+*.onnx
+*.trt
+*.engine
+*.pt
+*.safetensors
 
 # Training data
 data/real/
