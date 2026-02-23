@@ -263,3 +263,17 @@ class ObstacleInferencePipeline:
         alerts.sort(key=lambda x: x["priority"])
 
         return alerts
+
+    def should_emergency_brake(self, alerts: List[Dict]) -> bool:
+        """Determine if emergency brake should be triggered.
+
+        Args:
+            alerts: List of alerts from aggregate_alerts
+
+        Returns:
+            True if emergency brake required
+        """
+        for alert in alerts:
+            if alert["priority"] == 1 and alert["action"] == "EMERGENCY_BRAKE":
+                return True
+        return False
