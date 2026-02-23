@@ -36,3 +36,25 @@ class ObstacleInferencePipeline:
         self.trajectory_predictor = None
         self.ttc_calculator = None
         self.sudden_detector = None
+
+    def initialize_detector(
+        self,
+        model_size: str = "large",
+        confidence_threshold: float = 0.5,
+        confidence_critical: float = 0.3
+    ) -> None:
+        """Initialize RF-DETR obstacle detector.
+
+        Args:
+            model_size: Model size (small/medium/large)
+            confidence_threshold: General confidence threshold
+            confidence_critical: Lower threshold for critical zones
+        """
+        from .obstacle_detector import ObstacleDetector
+
+        self.detector = ObstacleDetector(
+            model_size=model_size,
+            confidence_threshold=confidence_threshold,
+            confidence_critical=confidence_critical
+        ).to(self.device)
+        self.detector.eval()
