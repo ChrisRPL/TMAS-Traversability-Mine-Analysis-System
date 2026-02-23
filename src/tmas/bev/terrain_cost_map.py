@@ -204,7 +204,11 @@ class TerrainCostMap:
         # 3. Project to BEV
         bev_cost = self.project_to_bev(image_cost_map)
 
-        # 4. Apply temporal averaging
+        # 4. Add geometry costs if depth map provided
+        if depth_map is not None:
+            bev_cost = self.add_geometry_costs(bev_cost, depth_map)
+
+        # 5. Apply temporal averaging
         if self.prev_cost_map is not None and self.temporal_alpha > 0:
             bev_cost = (
                 self.temporal_alpha * self.prev_cost_map +
@@ -231,3 +235,111 @@ class TerrainCostMap:
         """Reset cost map and temporal averaging."""
         self.cost_grid.reset()
         self.prev_cost_map = None
+
+    def compute_slope_cost(
+        self,
+        depth_map: np.ndarray,
+        max_slope_deg: float = 30.0
+    ) -> np.ndarray:
+        """Compute slope-based cost modifier from depth map.
+
+        Args:
+            depth_map: HxW depth map in meters
+            max_slope_deg: Maximum slope in degrees for scaling
+
+        Returns:
+            HxW slope cost map [0.0-0.3] (SPEC: +0.1 per 10° up to 30°)
+        """
+        # Compute gradients (depth change in x and y directions)
+        grad_y, grad_x = np.gradient(depth_map)
+
+        # Compute slope magnitude (in meters per pixel)
+        slope_magnitude = np.sqrt(grad_x**2 + grad_y**2)
+
+        # Convert to degrees (approximate)
+        # Assuming resolution gives pixel size in meters
+        pixel_size = self.bev_transform.resolution
+        slope_rad = np.arctan(slope_magnitude / pixel_size)
+        slope_deg = np.degrees(slope_rad)
+
+        # Clip to max slope
+        slope_deg = np.clip(slope_deg, 0, max_slope_deg)
+
+        # Map to cost: 0.1 per 10 degrees, max 0.3 at 30 degrees
+        slope_cost = (slope_deg / 10.0) * 0.1
+        slope_cost = np.clip(slope_cost, 0, 0.3)
+
+        return slope_cost
+
+    def compute_roughness_cost(
+        self,
+        depth_map: np.ndarray,
+        window_size: int = 5,
+        max_roughness: float = 0.5
+    ) -> np.ndarray:
+        """Compute roughness-based cost modifier from depth variance.
+
+        Args:
+            depth_map: HxW depth map in meters
+            window_size: Window size for local variance computation
+            max_roughness: Maximum roughness value for scaling
+
+        Returns:
+            HxW roughness cost map [0.0-0.1] (SPEC: up to +0.1)
+        """
+        # Compute local variance using convolution
+        kernel = np.ones((window_size, window_size), dtype=np.float32)
+        kernel /= kernel.sum()
+
+        # Mean of depth
+        depth_mean = cv2.filter2D(depth_map, -1, kernel)
+
+        # Mean of depth squared
+        depth_sq_mean = cv2.filter2D(depth_map**2, -1, kernel)
+
+        # Variance = E[X²] - E[X]²
+        variance = depth_sq_mean - depth_mean**2
+        variance = np.maximum(variance, 0)  # Ensure non-negative
+
+        # Standard deviation as roughness measure
+        roughness = np.sqrt(variance)
+
+        # Normalize to [0, 1] range
+        roughness = np.clip(roughness / max_roughness, 0, 1)
+
+        # Map to cost: up to 0.1
+        roughness_cost = roughness * 0.1
+
+        return roughness_cost
+
+    def add_geometry_costs(
+        self,
+        base_cost_map: np.ndarray,
+        depth_map: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        """Add geometry-based cost modifiers to base cost map.
+
+        Args:
+            base_cost_map: Base terrain cost map in BEV
+            depth_map: Optional depth map in image space
+
+        Returns:
+            Cost map with geometry modifiers added [0.0-1.4]
+        """
+        if depth_map is None:
+            return base_cost_map
+
+        # Compute geometry costs in image space
+        slope_cost = self.compute_slope_cost(depth_map)
+        roughness_cost = self.compute_roughness_cost(depth_map)
+
+        # Total geometry cost in image space
+        geometry_cost = slope_cost + roughness_cost
+
+        # Project geometry cost to BEV
+        bev_geometry_cost = self.project_to_bev(geometry_cost)
+
+        # Add to base cost (SPEC: Cost_terrain + Cost_geometry)
+        total_cost = base_cost_map + bev_geometry_cost
+
+        return total_cost
