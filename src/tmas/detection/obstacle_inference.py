@@ -100,3 +100,21 @@ class ObstacleInferencePipeline:
 
         dt = 1.0 / self.fps
         self.trajectory_predictor = TrajectoryPredictor(dt=dt)
+
+    def initialize_ttc_calculator(
+        self,
+        critical_ttc: float = 1.0,
+        warning_ttc: float = 3.0
+    ) -> None:
+        """Initialize time-to-collision calculator.
+
+        Args:
+            critical_ttc: Critical TTC threshold (seconds)
+            warning_ttc: Warning TTC threshold (seconds)
+        """
+        from .ttc import TTCCalculator
+
+        self.ttc_calculator = TTCCalculator(
+            critical_ttc=critical_ttc,
+            warning_ttc=warning_ttc
+        )
