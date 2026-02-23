@@ -14,3 +14,7 @@ seaborn>=0.13.2
 pyyaml>=6.0.1
 tqdm>=4.66.0
 pandas>=2.2.0
+
+# Object detection models
+rfdetr>=0.1.0  # RF-DETR for obstacle detection (ICLR 2026)
+supervision>=0.18.0  # For detection visualization and annotations
