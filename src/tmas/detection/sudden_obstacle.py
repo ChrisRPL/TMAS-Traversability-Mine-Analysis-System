@@ -136,3 +136,59 @@ class MotionRegionDetector:
             return np.zeros((0, 4), dtype=np.int32), np.zeros(0, dtype=np.float32)
 
         return np.array(boxes, dtype=np.int32), np.array(areas, dtype=np.float32)
+
+
+class SuddenObstacleDetector:
+    """Complete sudden obstacle detection pipeline.
+
+    Combines frame differencing, morphological filtering, and motion region
+    detection to identify obstacles appearing suddenly in critical zones.
+    """
+
+    def __init__(
+        self,
+        threshold: int = 25,
+        kernel_size: int = 5,
+        min_area: int = 100
+    ):
+        """Initialize sudden obstacle detector.
+
+        Args:
+            threshold: Frame difference threshold
+            kernel_size: Morphological filter kernel size
+            min_area: Minimum motion region area
+        """
+        self.differencer = FrameDifferencer(threshold)
+        self.filter = MorphologicalFilter(kernel_size)
+        self.detector = MotionRegionDetector(min_area)
+
+    def detect(
+        self,
+        frame: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Detect sudden obstacles in frame.
+
+        Args:
+            frame: RGB frame [H, W, 3]
+
+        Returns:
+            Tuple of (motion_boxes, areas)
+                motion_boxes: [N, 4] bounding boxes
+                areas: [N] motion region areas
+        """
+        # Convert to grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+        # Compute frame difference
+        motion_mask = self.differencer.compute_difference(gray)
+
+        if motion_mask is None:
+            return np.zeros((0, 4), dtype=np.int32), np.zeros(0, dtype=np.float32)
+
+        # Filter noise
+        filtered_mask = self.filter.filter_noise(motion_mask)
+
+        # Detect motion regions
+        boxes, areas = self.detector.find_motion_regions(filtered_mask)
+
+        return boxes, areas
