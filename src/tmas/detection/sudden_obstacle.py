@@ -9,7 +9,7 @@ Target latency: <50ms (SPEC requirement)
 
 import numpy as np
 import cv2
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 
 
 class FrameDifferencer:
@@ -192,3 +192,36 @@ class SuddenObstacleDetector:
         boxes, areas = self.detector.find_motion_regions(filtered_mask)
 
         return boxes, areas
+
+    def check_critical_zone(
+        self,
+        boxes: np.ndarray,
+        image_height: int,
+        critical_zone_ratio: float = 0.7
+    ) -> List[Dict]:
+        """Check if motion boxes are in critical zone.
+
+        Args:
+            boxes: Motion bounding boxes [N, 4]
+            image_height: Image height in pixels
+            critical_zone_ratio: Bottom fraction of image as critical zone
+
+        Returns:
+            List of alert dicts for boxes in critical zone
+        """
+        critical_threshold = image_height * critical_zone_ratio
+        alerts = []
+
+        for box in boxes:
+            x, y, w, h = box
+            box_bottom = y + h
+
+            if box_bottom >= critical_threshold:
+                alerts.append({
+                    "bbox": box.tolist(),
+                    "alert_level": "CRITICAL",
+                    "action": "EMERGENCY_BRAKE",
+                    "reason": "sudden_obstacle_in_critical_zone"
+                })
+
+        return alerts
