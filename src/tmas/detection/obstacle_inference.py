@@ -93,3 +93,10 @@ class ObstacleInferencePipeline:
             track_buffer=track_buffer,
             frame_rate=self.fps
         )
+
+    def initialize_trajectory_predictor(self) -> None:
+        """Initialize Kalman filter trajectory predictor."""
+        from ..tracking.trajectory_prediction import TrajectoryPredictor
+
+        dt = 1.0 / self.fps
+        self.trajectory_predictor = TrajectoryPredictor(dt=dt)
