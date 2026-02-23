@@ -118,3 +118,21 @@ class ObstacleInferencePipeline:
             critical_ttc=critical_ttc,
             warning_ttc=warning_ttc
         )
+
+    def initialize_sudden_detector(
+        self,
+        threshold: int = 25,
+        min_area: int = 500
+    ) -> None:
+        """Initialize sudden obstacle detector.
+
+        Args:
+            threshold: Motion detection threshold
+            min_area: Minimum area for valid motion region
+        """
+        from .sudden_obstacle import SuddenObstacleDetector
+
+        self.sudden_detector = SuddenObstacleDetector(
+            threshold=threshold,
+            min_area=min_area
+        )
