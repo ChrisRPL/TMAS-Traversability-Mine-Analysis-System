@@ -213,3 +213,53 @@ class ObstacleInferencePipeline:
             "tracks": tracks,
             "sudden_obstacles": sudden_obstacles
         }
+
+    def aggregate_alerts(self, results: Dict) -> List[Dict]:
+        """Aggregate all alerts from pipeline results.
+
+        Args:
+            results: Output from process_frame
+
+        Returns:
+            List of alerts with priority and action recommendations
+        """
+        alerts = []
+
+        # Critical TTC alerts
+        for track in results["tracks"]:
+            if track.get("collision_risk") == "CRITICAL":
+                alerts.append({
+                    "type": "CRITICAL_TTC",
+                    "priority": 1,
+                    "track_id": track["track_id"],
+                    "ttc": track["ttc"],
+                    "class": track["class"],
+                    "action": "EMERGENCY_BRAKE"
+                })
+
+        # Warning TTC alerts
+        for track in results["tracks"]:
+            if track.get("collision_risk") == "WARNING":
+                alerts.append({
+                    "type": "WARNING_TTC",
+                    "priority": 2,
+                    "track_id": track["track_id"],
+                    "ttc": track["ttc"],
+                    "class": track["class"],
+                    "action": "SLOW_DOWN"
+                })
+
+        # Sudden obstacle alerts
+        for obs in results["sudden_obstacles"]:
+            if obs.get("alert_type") == "SUDDEN_CRITICAL":
+                alerts.append({
+                    "type": "SUDDEN_CRITICAL",
+                    "priority": 1,
+                    "bbox": obs["bbox"],
+                    "action": "EMERGENCY_BRAKE"
+                })
+
+        # Sort by priority
+        alerts.sort(key=lambda x: x["priority"])
+
+        return alerts
