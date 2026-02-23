@@ -5,9 +5,13 @@ using Inverse Perspective Mapping (IPM).
 """
 
 from .bev_transform import CameraCalibration, BEVTransform, BEVGrid
+from .terrain_cost_map import TerrainCostMap, TERRAIN_COSTS, TMAS_TERRAIN_COSTS
 
 __all__ = [
     "CameraCalibration",
     "BEVTransform",
-    "BEVGrid"
+    "BEVGrid",
+    "TerrainCostMap",
+    "TERRAIN_COSTS",
+    "TMAS_TERRAIN_COSTS"
 ]
