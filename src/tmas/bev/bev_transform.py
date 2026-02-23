@@ -329,3 +329,174 @@ class BEVTransform:
         world_coords = np.stack([world_x, world_y], axis=-1)
 
         return world_coords
+
+
+class BEVGrid:
+    """Bird's Eye View grid management and visualization.
+
+    Manages 400×400 grid at 5cm/pixel resolution (20m × 20m coverage)
+    as specified in TMAS spec.
+    """
+
+    def __init__(
+        self,
+        grid_size: int = 400,
+        resolution: float = 0.05,
+        dtype: np.dtype = np.float32
+    ):
+        """Initialize BEV grid.
+
+        Args:
+            grid_size: Grid dimensions (grid_size × grid_size)
+            resolution: Resolution in meters per pixel (5cm/pixel)
+            dtype: Data type for grid values
+        """
+        self.grid_size = grid_size
+        self.resolution = resolution
+        self.dtype = dtype
+
+        # Coverage in meters (20m × 20m for default)
+        self.coverage = grid_size * resolution
+
+        # Create empty grid
+        self.grid = self._create_empty_grid()
+
+    def _create_empty_grid(self) -> np.ndarray:
+        """Create empty grid with zeros.
+
+        Returns:
+            grid_size × grid_size array of zeros
+        """
+        return np.zeros((self.grid_size, self.grid_size), dtype=self.dtype)
+
+    def reset(self) -> None:
+        """Reset grid to zeros."""
+        self.grid.fill(0)
+
+    def get_grid(self) -> np.ndarray:
+        """Get current grid.
+
+        Returns:
+            grid_size × grid_size array
+        """
+        return self.grid
+
+    def set_value(self, row: int, col: int, value: float) -> None:
+        """Set value at grid cell.
+
+        Args:
+            row: Row index
+            col: Column index
+            value: Value to set
+        """
+        if 0 <= row < self.grid_size and 0 <= col < self.grid_size:
+            self.grid[row, col] = value
+
+    def get_value(self, row: int, col: int) -> float:
+        """Get value at grid cell.
+
+        Args:
+            row: Row index
+            col: Column index
+
+        Returns:
+            Value at cell, or 0 if out of bounds
+        """
+        if 0 <= row < self.grid_size and 0 <= col < self.grid_size:
+            return float(self.grid[row, col])
+        return 0.0
+
+    def fill_polygon(
+        self,
+        polygon: np.ndarray,
+        value: float,
+        transform: Optional[BEVTransform] = None
+    ) -> None:
+        """Fill polygon region with value.
+
+        Args:
+            polygon: Nx2 array of polygon vertices in world coordinates
+            value: Value to fill
+            transform: BEVTransform for coordinate conversion
+        """
+        if transform is not None:
+            # Convert world coordinates to grid coordinates
+            grid_coords = transform.world_to_grid(polygon)
+        else:
+            grid_coords = polygon
+
+        # Round to integer grid coordinates
+        grid_coords = np.round(grid_coords).astype(int)
+
+        # Use scanline fill algorithm (simplified)
+        # For now, just mark the bounding box
+        min_row = max(0, int(grid_coords[:, 1].min()))
+        max_row = min(self.grid_size - 1, int(grid_coords[:, 1].max()))
+        min_col = max(0, int(grid_coords[:, 0].min()))
+        max_col = min(self.grid_size - 1, int(grid_coords[:, 0].max()))
+
+        self.grid[min_row:max_row + 1, min_col:max_col + 1] = value
+
+    def fill_circle(
+        self,
+        center_world: Tuple[float, float],
+        radius: float,
+        value: float,
+        transform: BEVTransform
+    ) -> None:
+        """Fill circular region with value.
+
+        Args:
+            center_world: Center coordinates (x, y) in meters
+            radius: Radius in meters
+            value: Value to fill
+            transform: BEVTransform for coordinate conversion
+        """
+        # Convert center to grid coordinates
+        center_array = np.array([center_world])
+        center_grid = transform.world_to_grid(center_array)[0]
+        center_col, center_row = int(center_grid[0]), int(center_grid[1])
+
+        # Radius in pixels
+        radius_pixels = int(radius / self.resolution)
+
+        # Fill circle using distance check
+        for r in range(max(0, center_row - radius_pixels),
+                      min(self.grid_size, center_row + radius_pixels + 1)):
+            for c in range(max(0, center_col - radius_pixels),
+                          min(self.grid_size, center_col + radius_pixels + 1)):
+                dist = np.sqrt((r - center_row)**2 + (c - center_col)**2)
+                if dist <= radius_pixels:
+                    self.grid[r, c] = value
+
+    def visualize(self, colormap: str = 'viridis') -> np.ndarray:
+        """Create visualization of grid.
+
+        Args:
+            colormap: Matplotlib colormap name
+
+        Returns:
+            RGB image (H, W, 3) for visualization
+        """
+        # Normalize grid to [0, 1] for visualization
+        grid_norm = self.grid.copy()
+
+        # Handle infinite values
+        finite_mask = np.isfinite(grid_norm)
+        if finite_mask.any():
+            grid_norm[~finite_mask] = grid_norm[finite_mask].max()
+
+        # Normalize to [0, 1]
+        grid_min = grid_norm.min()
+        grid_max = grid_norm.max()
+        if grid_max > grid_min:
+            grid_norm = (grid_norm - grid_min) / (grid_max - grid_min)
+        else:
+            grid_norm = np.zeros_like(grid_norm)
+
+        # Convert to RGB (simple grayscale for now)
+        # In production, use matplotlib colormap
+        rgb = np.stack([grid_norm] * 3, axis=-1)
+        rgb = (rgb * 255).astype(np.uint8)
+
+        return rgb
