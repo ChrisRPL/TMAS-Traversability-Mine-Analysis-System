@@ -442,5 +442,116 @@ def main():
     print("\nAugmentation tests successful!")
 
 
+def get_obstacle_detection_train() -> A.Compose:
+    """Get obstacle detection training augmentation.
+
+    Balanced augmentation for obstacle detection with varied scales.
+    More aggressive than mine detection since obstacles are larger.
+
+    Returns:
+        Albumentations composition for training
+    """
+    return A.Compose([
+        # Resize and crop
+        A.RandomResizedCrop(
+            height=640,
+            width=640,
+            scale=(0.8, 1.0),
+            ratio=(0.9, 1.1),
+            p=1.0
+        ),
+
+        # Geometric transforms
+        A.HorizontalFlip(p=0.5),
+        A.ShiftScaleRotate(
+            shift_limit=0.1,
+            scale_limit=0.2,
+            rotate_limit=15,
+            border_mode=0,
+            p=0.5
+        ),
+
+        # Color augmentation
+        A.RandomBrightnessContrast(
+            brightness_limit=0.2,
+            contrast_limit=0.2,
+            p=0.5
+        ),
+        A.HueSaturationValue(
+            hue_shift_limit=10,
+            sat_shift_limit=20,
+            val_shift_limit=10,
+            p=0.3
+        ),
+
+        # Weather augmentation
+        A.RandomFog(fog_coef_lower=0.1, fog_coef_upper=0.3, p=0.15),
+        A.RandomRain(
+            slant_lower=-5,
+            slant_upper=5,
+            drop_length=10,
+            drop_width=1,
+            drop_color=(200, 200, 200),
+            blur_value=3,
+            brightness_coefficient=0.95,
+            rain_type="drizzle",
+            p=0.1
+        ),
+        A.RandomShadow(
+            shadow_roi=(0, 0.5, 1, 1),
+            num_shadows_lower=1,
+            num_shadows_upper=2,
+            shadow_dimension=5,
+            p=0.15
+        ),
+
+        # Noise and blur
+        A.OneOf([
+            A.GaussNoise(var_limit=(5.0, 20.0), p=1.0),
+            A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.1, 0.3), p=1.0),
+        ], p=0.2),
+
+        A.OneOf([
+            A.MotionBlur(blur_limit=3, p=1.0),
+            A.GaussianBlur(blur_limit=3, p=1.0),
+        ], p=0.15),
+
+        # Normalization
+        A.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225],
+            max_pixel_value=255.0
+        ),
+        ToTensorV2()
+    ], bbox_params=A.BboxParams(
+        format='pascal_voc',
+        min_visibility=0.3,
+        min_area=25,
+        label_fields=['labels']
+    ))
+
+
+def get_obstacle_detection_val() -> A.Compose:
+    """Get obstacle detection validation augmentation.
+
+    Minimal augmentation for validation.
+
+    Returns:
+        Albumentations composition for validation
+    """
+    return A.Compose([
+        A.Resize(height=640, width=640),
+        A.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225],
+            max_pixel_value=255.0
+        ),
+        ToTensorV2()
+    ], bbox_params=A.BboxParams(
+        format='pascal_voc',
+        label_fields=['labels']
+    ))
+
+
 if __name__ == "__main__":
     main()
