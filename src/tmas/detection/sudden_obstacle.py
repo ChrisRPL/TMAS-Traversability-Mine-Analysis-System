@@ -53,3 +53,37 @@ class FrameDifferencer:
         self.previous_frame = current_frame.copy()
 
         return motion_mask
+
+
+class MorphologicalFilter:
+    """Morphological operations to reduce noise in motion masks."""
+
+    def __init__(self, kernel_size: int = 5):
+        """Initialize morphological filter.
+
+        Args:
+            kernel_size: Size of morphological kernel
+        """
+        self.kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE,
+            (kernel_size, kernel_size)
+        )
+
+    def filter_noise(self, motion_mask: np.ndarray) -> np.ndarray:
+        """Apply morphological operations to reduce noise.
+
+        Args:
+            motion_mask: Binary motion mask [H, W]
+
+        Returns:
+            Filtered motion mask [H, W]
+        """
+        # Morphological opening (erosion followed by dilation)
+        # Removes small noise
+        opened = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, self.kernel)
+
+        # Morphological closing (dilation followed by erosion)
+        # Fills small holes
+        closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, self.kernel)
+
+        return closed
