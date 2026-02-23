@@ -1,0 +1,164 @@
+# Obstacle Detection Training Configuration
+# RF-DETR model for real-time obstacle detection
+# Target: >99% recall for persons/vehicles, >95% for static obstacles
+
+model:
+  name: "rfdetr"
+  size: "large"  # Options: small, medium, large, xl, 2xl
+  num_classes: 20  # TMAS obstacle classes
+  pretrained: true  # Load COCO pretrained weights
+  confidence_threshold: 0.5  # Default threshold
+  confidence_critical: 0.3  # Lower threshold for persons/vehicles
+
+data:
+  train_root: "data/coco/train2017"
+  train_annotations: "data/coco/annotations/instances_train2017.json"
+  val_root: "data/coco/val2017"
+  val_annotations: "data/coco/annotations/instances_val2017.json"
+  num_workers: 4
+  prefetch_factor: 2
+
+training:
+  epochs: 50
+  batch_size: 16  # Adjust based on GPU memory
+  accumulation_steps: 2  # Effective batch size = 16 * 2 = 32
+  mixed_precision: true  # FP16 for faster training
+  gradient_clip_norm: 1.0
+
+optimizer:
+  type: "adamw"
+  lr: 1.0e-4  # Lower for fine-tuning pretrained model
+  weight_decay: 1.0e-4
+  betas: [0.9, 0.999]
+
+scheduler:
+  type: "cosine"  # Options: cosine, onecycle, step
+  eta_min: 1.0e-6
+  warmup_epochs: 3
+  warmup_lr: 1.0e-6
+
+# Class weights for loss function
+# Prioritize critical dynamic obstacles (persons, vehicles)
+class_weights:
+  - 10.0  # 0: person (CRITICAL)
+  - 10.0  # 1: car (CRITICAL)
+  - 10.0  # 2: truck (CRITICAL)
+  - 8.0   # 3: military_vehicle (CRITICAL)
+  - 10.0  # 4: motorcycle (CRITICAL)
+  - 5.0   # 5: bicycle (WARNING)
+  - 10.0  # 6: bus (CRITICAL)
+  - 8.0   # 7: animal (HIGH)
+  - 5.0   # 8: fallen_tree (HIGH)
+  - 5.0   # 9: rock (HIGH)
+  - 5.0   # 10: crater (HIGH)
+  - 3.0   # 11: barrier (MEDIUM)
+  - 3.0   # 12: wreckage (MEDIUM)
+  - 3.0   # 13: debris (MEDIUM)
+  - 2.0   # 14: metal_fragments (MEDIUM)
+  - 2.0   # 15: concrete_block (MEDIUM)
+  - 2.0   # 16: container (MEDIUM)
+  - 2.0   # 17: pole (MEDIUM)
+  - 1.0   # 18: tire (LOW)
+  - 3.0   # 19: unknown_obstacle (MEDIUM)
+
+augmentation:
+  train:
+    resize: [640, 640]
+    random_crop_scale: [0.8, 1.0]
+    horizontal_flip: 0.5
+    brightness_contrast: 0.5
+    hue_saturation: 0.3
+    fog: 0.15
+    rain: 0.1
+    shadow: 0.15
+    noise: 0.2
+    blur: 0.15
+  val:
+    resize: [640, 640]
+
+validation:
+  eval_interval: 1  # Validate every epoch
+  confidence_threshold: 0.5
+  nms_threshold: 0.5
+  # Target metrics
+  person_recall_target: 0.99
+  vehicle_recall_target: 0.99
+  static_recall_target: 0.95
+
+checkpoints:
+  save_dir: "checkpoints/obstacle_detection"
+  save_interval: 5  # Save every 5 epochs
+  keep_best: true  # Keep best recall model
+  keep_latest: true
+  metric: "recall_mean"  # Best model by mean recall
+
+logging:
+  use_wandb: true
+  wandb_project: "tmas-obstacle-detection"
+  run_name: "rfdetr_large_v1"
+  log_interval: 50  # Log every 50 batches
+  log_images: true
+  log_images_interval: 500  # Log detection visualizations
+
+# Safety-critical evaluation
+safety:
+  # Critical classes that must meet high recall
+  critical_classes: [0, 1, 2, 3, 4, 6]  # person, cars, trucks, motorcycle, bus
+  critical_recall_threshold: 0.99
+
+  # High priority classes
+  high_priority_classes: [5, 7, 8, 9, 10]  # bicycle, animal, tree, rock, crater
+  high_priority_recall_threshold: 0.95
+
+  # Alert if recall drops below threshold during training
+  recall_alert: true
+
+# Dataset statistics (COCO 2017)
+dataset_info:
+  train_images: 118287  # COCO train2017
+  val_images: 5000      # COCO val2017
+  # Approximate class distribution in COCO
+  class_distribution:
+    person: 262465  # Very common
+    car: 43658
+    truck: 9931
+    motorcycle: 8714
+    bicycle: 7194
+    bus: 6223
+    # Animals less common but still present
+    dog: 5285
+    horse: 2616
+    # Other classes from custom annotations
+
+# Hardware configuration
+hardware:
+  device: "cuda"  # cuda or cpu
+  num_gpus: 1
+  # For multi-GPU training
+  distributed: false
+  # Memory optimization
+  pin_memory: true
+  persistent_workers: true
+
+# Class names for reference
+class_names:
+  - "person"
+  - "car"
+  - "truck"
+  - "military_vehicle"
+  - "motorcycle"
+  - "bicycle"
+  - "bus"
+  - "animal"
+  - "fallen_tree"
+  - "rock"
+  - "crater"
+  - "barrier"
+  - "wreckage"
+  - "debris"
+  - "metal_fragments"
+  - "concrete_block"
+  - "container"
+  - "pole"
+  - "tire"
+  - "unknown_obstacle"
