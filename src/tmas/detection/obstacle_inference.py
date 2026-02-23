@@ -58,3 +58,16 @@ class ObstacleInferencePipeline:
             confidence_critical=confidence_critical
         ).to(self.device)
         self.detector.eval()
+
+    def initialize_depth_estimator(self, model_type: str = "ZoeD_NK") -> None:
+        """Initialize ZoeDepth monocular depth estimator.
+
+        Args:
+            model_type: ZoeDepth model variant
+        """
+        from ..depth.monocular_depth import MonocularDepthEstimator
+
+        self.depth_estimator = MonocularDepthEstimator(
+            model_type=model_type
+        ).to(self.device)
+        self.depth_estimator.eval()
