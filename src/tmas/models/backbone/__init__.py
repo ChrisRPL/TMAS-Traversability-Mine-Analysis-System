@@ -41,16 +41,16 @@ def get_backbone(
             **kwargs
         )
     elif name == "resnet18":
-        from .resnet import ResNetBackbone
-        return ResNetBackbone(
+        from .resnet import ResNetThermalBackbone
+        return ResNetThermalBackbone(
             depth=18,
             pretrained=pretrained,
             features_only=features_only,
             **kwargs
         )
     elif name == "resnet50":
-        from .resnet import ResNetBackbone
-        return ResNetBackbone(
+        from .resnet import ResNetThermalBackbone
+        return ResNetThermalBackbone(
             depth=50,
             pretrained=pretrained,
             features_only=features_only,
