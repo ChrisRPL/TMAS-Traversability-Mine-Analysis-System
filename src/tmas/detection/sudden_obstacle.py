@@ -87,3 +87,52 @@ class MorphologicalFilter:
         closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, self.kernel)
 
         return closed
+
+
+class MotionRegionDetector:
+    """Detect motion regions from filtered motion mask."""
+
+    def __init__(self, min_area: int = 100):
+        """Initialize motion region detector.
+
+        Args:
+            min_area: Minimum contour area to consider as valid motion
+        """
+        self.min_area = min_area
+
+    def find_motion_regions(
+        self,
+        motion_mask: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Find motion regions using connected components.
+
+        Args:
+            motion_mask: Binary motion mask [H, W]
+
+        Returns:
+            Tuple of (bounding_boxes, areas)
+                bounding_boxes: [N, 4] in [x, y, w, h] format
+                areas: [N] area of each region
+        """
+        # Find contours
+        contours, _ = cv2.findContours(
+            motion_mask,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        boxes = []
+        areas = []
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+
+            if area >= self.min_area:
+                x, y, w, h = cv2.boundingRect(contour)
+                boxes.append([x, y, w, h])
+                areas.append(area)
+
+        if len(boxes) == 0:
+            return np.zeros((0, 4), dtype=np.int32), np.zeros(0, dtype=np.float32)
+
+        return np.array(boxes, dtype=np.int32), np.array(areas, dtype=np.float32)
