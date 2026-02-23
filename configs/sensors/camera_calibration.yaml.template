@@ -1,0 +1,35 @@
+# Camera Calibration Configuration
+# Sample calibration for FLIR Blackfly S camera mounted on military vehicle
+
+# Intrinsic parameters (from camera calibration)
+intrinsics:
+  fx: 1200.0  # Focal length X (pixels)
+  fy: 1200.0  # Focal length Y (pixels)
+  cx: 960.0   # Principal point X (pixels)
+  cy: 540.0   # Principal point Y (pixels)
+
+# Extrinsic parameters (camera mounting position)
+extrinsics:
+  height: 2.5    # Camera height above ground (meters)
+  pitch: 0.349   # Pitch angle (radians, ~20 degrees looking down)
+  roll: 0.0      # Roll angle (radians)
+  yaw: 0.0       # Yaw angle (radians)
+
+# Distortion coefficients (from camera calibration)
+distortion:
+  k1: -0.1   # Radial distortion coefficient 1
+  k2: 0.05   # Radial distortion coefficient 2
+  p1: 0.0    # Tangential distortion coefficient 1
+  p2: 0.0    # Tangential distortion coefficient 2
+
+# BEV grid parameters (SPEC requirements)
+bev_grid:
+  grid_size: 400      # Grid dimensions (400×400)
+  resolution: 0.05    # Resolution in meters/pixel (5cm/pixel)
+  coverage: 20.0      # Coverage in meters (20m × 20m)
+
+# Notes:
+# - Pitch angle: Positive = looking down (standard for BEV)
+# - Height: Typical military vehicle camera mount height
+# - Focal length: Approximate for 12MP camera with 8mm lens
+# - Adjust these values based on actual camera calibration
