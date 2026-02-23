@@ -136,3 +136,80 @@ class ObstacleInferencePipeline:
             threshold=threshold,
             min_area=min_area
         )
+
+    @torch.no_grad()
+    def process_frame(
+        self,
+        frame: np.ndarray,
+        ego_velocity: Optional[np.ndarray] = None
+    ) -> Dict:
+        """Process single frame through complete pipeline.
+
+        Args:
+            frame: Input image (H, W, 3) BGR
+            ego_velocity: Ego vehicle velocity [vx, vy] m/s
+
+        Returns:
+            Dictionary with detections, tracks, alerts
+        """
+        # 1. Obstacle detection
+        detections = self.detector(frame)
+
+        # 2. Depth estimation for each detection
+        depths = []
+        for det in detections:
+            bbox = det["bbox"]
+            x1, y1, x2, y2 = map(int, bbox)
+            roi = frame[y1:y2, x1:x2]
+            depth_map = self.depth_estimator(roi)
+            mean_depth = float(depth_map.mean())
+            depths.append(mean_depth)
+
+        # Add depth to detections
+        for det, depth in zip(detections, depths):
+            det["depth"] = depth
+            det["safety_zone"] = self.depth_estimator.classify_zone(depth)
+
+        # 3. Multi-object tracking
+        tracks = self.tracker.update(detections)
+
+        # 4. Trajectory prediction and TTC calculation
+        for track in tracks:
+            track_id = track["track_id"]
+            bbox = track["bbox"]
+            depth = track["depth"]
+
+            # Update Kalman filter
+            center_x = (bbox[0] + bbox[2]) / 2
+            center_y = (bbox[1] + bbox[3]) / 2
+            self.trajectory_predictor.update(track_id, center_x, center_y)
+
+            # Predict trajectory
+            future_trajectory = self.trajectory_predictor.predict_trajectory(
+                track_id,
+                horizon=3.0
+            )
+            track["predicted_trajectory"] = future_trajectory
+
+            # Compute TTC
+            velocity = self.trajectory_predictor.get_velocity(track_id)
+            if velocity is not None:
+                ttc_result = self.ttc_calculator.compute_ttc(
+                    distance=depth,
+                    velocity=np.linalg.norm(velocity),
+                    ego_velocity=ego_velocity
+                )
+                track["ttc"] = ttc_result["ttc"]
+                track["collision_risk"] = ttc_result["risk_level"]
+
+        # 5. Sudden obstacle detection
+        sudden_obstacles = self.sudden_detector.detect(frame)
+        for obs in sudden_obstacles:
+            if obs["in_critical_zone"]:
+                obs["alert_type"] = "SUDDEN_CRITICAL"
+
+        return {
+            "detections": detections,
+            "tracks": tracks,
+            "sudden_obstacles": sudden_obstacles
+        }
